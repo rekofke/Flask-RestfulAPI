@@ -28,7 +28,7 @@ ma = Marshmallow(app)
 
 class Customer(Base):
 
-    __tablename__ = 'Customer'
+    __tablename__ = 'customer'
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(db.String(225), nullable=False)
@@ -40,21 +40,21 @@ class Customer(Base):
 
 # Association Table - facilitates one order to many products, or many products to one order (many-to-many)
 order_products = db.Table(
-    "Order_Products",
+    "order_products",
     Base.metadata,
-    db.Column('order_id', db.ForeignKey('Orders.id')), 
-    db.Column('product_id', db.ForeignKey('Products.id')) 
+    db.Column('order_id', db.ForeignKey('orders.id')), 
+    db.Column('product_id', db.ForeignKey('products.id')) 
 )
 
 
 
 
 class Orders(Base):
-    __tablename__ = 'Orders' 
+    __tablename__ = 'orders' 
 
     id: Mapped[int] = mapped_column(primary_key=True)
     order_date: Mapped[date] = mapped_column(db.Date, nullable=False)
-    customer_id: Mapped[int] = mapped_column(db.ForeignKey('Customer.id'))
+    customer_id: Mapped[int] = mapped_column(db.ForeignKey('customer.id'))
     # many-to-one relationship with Customer
     customer: Mapped['Customer'] = db.relationship(back_populates="orders")
     products: Mapped[List['Products']] = db.relationship(secondary=order_products, back_populates="orders")  
@@ -63,7 +63,7 @@ class Orders(Base):
 
 
 class Products(Base):
-    __tablename__ = 'Products'
+    __tablename__ = 'products'
 
     id: Mapped[int] = mapped_column(primary_key=True)
     product_name: Mapped[str] = mapped_column(db.String(225), nullable=False)
@@ -138,49 +138,49 @@ def get_customers():
 # Get customer by ID (GET)
 
 @app.route('/customers/<int:id>', methods=["GET"])
-def get_customer(id): # accepts customer id as parameter
+def get_customer(id):
     query = select(Customer).where(Customer.id == id)
-    result = db.session.execute(query).scalars().first() # first()returns first instnace of customer.id
+    customer = db.session.execute(query).scalars().first()
 
-    if result is None:
+    if customer is None:
         return jsonify({"Error": "Customer not found"}), 404
     
-    return customer_schema.jsonify(Customer), 200 # serializes customer into JSON format, returns user and status code 200
+    return customer_schema.jsonify(customer), 200  # serializes customer into JSON format, returns user and status code 200
 
 # Update customer (PUT)
 
-@app.route('/customers/<int:id>', methods=["PUT"]) # defines a PUT route at /customers/<id> to update customer by id
+@app.route('/customers/<int:id>', methods=["PUT"])
 def update_customer(id):
-    customer = db.session.get(Customer, id)  # retrieves customer with specified id from DB
+    customer = db.session.get(Customer, id)  # Variable renamed to 'customer'
 
     if not customer:
         return jsonify({"Message": "Invalid customer id"}), 400
-
     
     try:
-        customer_data = customer_schema.load(request.json) # loads and validates incoming JSON data against the schema
-    except ValidationError as e: # handles validation errors
+        customer_data = customer_schema.load(request.json)
+    except ValidationError as e:
         return jsonify(e.messages), 400
     
-    Customer.name = customer_data['name']
-    Customer.email = customer_data['email']
-    Customer.address = customer_data['address']
+    customer.name = customer_data['name']
+    customer.email = customer_data['email']
+    customer.address = customer_data['address']
 
     db.session.commit()
-    return customer_schema.jsonify(Customer), 200
+    return customer_schema.jsonify(customer), 200 
 
 # Delete customer (DELETE)
 
 @app.route("/customers/<int:id>", methods=["DELETE"])
 def delete_customer(id):
-    Customer = db.session.get(Customer, id) # retrieves customer with specified id from DB
+    customer = db.session.get(Customer, id)  # Variable renamed to 'customer'
 
-    if not Customer:
+    if not customer:
         return jsonify({"Message": "Invalid customer id"}), 400
     
-    db.session.delete(Customer) # deletes customer from DB
-    db.session.commit() # commits changes to DB
-    return jsonify({"Message": "Customer deleted successfully"}), 200 # returns success message and status code 200
+    db.session.delete(customer)
+    db.session.commit()
+    return jsonify({"Message": "Customer deleted successfully"}), 200
+ # returns success message and status code 200
 
 #========== API ROUTES: Products ==========
 # Create new product (POST)
@@ -204,43 +204,42 @@ def create_product():
 @app.route("/products", methods=["GET"])
 def get_all_products(): 
     query = select(Products)
-    result = db.session.execute(query).scalars() # query products table and convert row objects into usable python objects with scalars
-    Products = result.all() # convert to list of product objects
+    result = db.session.execute(query).scalars()
+    products = result.all()  # Variable renamed to 'products'
+    return products_schema.jsonify(products), 200
 
-    return products_schema.jsonify(Products), 200
 
 # Get product by ID (GET)
 
 @app.route('/products/<int:id>', methods=["GET"])
-def get_product(id):# accepts product id as parameter
+def get_product(id):
     query = select(Products).where(Products.id == id)
-    result = db.session.execute(query).scalars().first() # first()returns first instnace of product.id
+    result = db.session.execute(query).scalars().first()  # Variable renamed to 'product'
 
     if result is None:
         return jsonify({"Error": "Product not found"}), 404
     
-    return product_schema.jsonify(Products), 200 # serializes products into JSON format, returns user and status code 200
+    return product_schema.jsonify(result), 200  # serializes products into JSON format, returns user and status code 200
 
 # Update product (PUT)
 
-@app.route('/products/<int:id>', methods=["PUT"]) # defines a PUT route at /products/<id> to update customer by id
+@app.route('/products/<int:id>', methods=["PUT"])
 def update_product(id):
-    Product = db.session.get(Product, id) # retrieves product with specified id from DB
+    product = db.session.get(Products, id)  # Variable renamed to 'product'
 
-    if not Product:
+    if not product:
         return jsonify({"Message": "Invalid product id"}), 400
     
     try:
-        product_data = product_schema.load(request.json) # loads and validates incoming JSON data against the schema
-    except ValidationError as e: # handles validation errors
+        product_data = product_schema.load(request.json)
+    except ValidationError as e:
         return jsonify(e.messages), 400
     
-    Product.name = product_data['product_name']
-    Product.price = product_data['price']
-    Product.orders = product_data['orders']
+    product.product_name = product_data['product_name']
+    product.price = product_data['price']
 
     db.session.commit()
-    return product_schema.jsonify(Product), 200
+    return product_schema.jsonify(product), 200  
 
 
 
@@ -248,15 +247,14 @@ def update_product(id):
 
 @app.route("/products/<int:id>", methods=["DELETE"])
 def delete_product(id):
-    Product = db.session.get(Product, id) # retrieves product with specified id from DB
+    product = db.session.get(Products, id)  # Variable renamed to 'product'
 
-    if not Product:
+    if not product:
         return jsonify({"Message": "Invalid product id"}), 400
     
-    db.session.delete(Product) # deletes product from DB
-    db.session.commit() # commits changes to DB
-    return jsonify({"Message": "Product deleted successfully"}), 200 # returns success message and status code 200
-
+    db.session.delete(product)
+    db.session.commit()
+    return jsonify({"Message": "Product deleted successfully"}), 200
 #========== API ROUTES: Orders ==========
 # Create new order (POST)
 
@@ -285,17 +283,17 @@ def add_order():
 # Add item to order (POST)
 @app.route("/orders/<int:order_id>/add_product/<int:product_id>", methods=["PUT"])
 def add_product(order_id, product_id):
-    order = db.session.get(Orders, id) # can use .get to retrieve using primary key
+    order = db.session.get(Orders, order_id)  # Corrected 'id' to 'order_id'
     product = db.session.get(Products, product_id)
 
-    if order and product: # check if order and product exist
-        if product not in order.products: # check if product is already in order
-            order.products.append(product) # create relationship from order to product
-            db.session.commit() # commit changes to DB
+    if order and product:
+        if product not in order.products:
+            order.products.append(product)
+            db.session.commit()
             return jsonify({"Message": "Successfully added item to order."}), 200
-        else: # product is in order, products
+        else:
             return jsonify({"Message": "Product already in order."}), 400
-    else: # order or product does not exist
+    else:
         return jsonify({"Message": "Invalid order or product id"}), 400
     
 # Get all orders (GET)
@@ -303,10 +301,23 @@ def add_product(order_id, product_id):
 @app.route("/orders", methods=["GET"])
 def get_orders():
     query = select(Orders)
-    result = db.session.execute(query).scalars() # query orders table and convert row objects into usable python objects with scalars
-    Orders = result.all() # convert to list of order objects
+    result = db.session.execute(query).scalars()
+    orders = result.all()  # Variable renamed to 'orders'
+    return orders_schema.jsonify(orders), 200
 
-    return orders_schema.jsonify(Orders), 200
+# Get all products for an order
+@app.route('/orders/<int:order_id>/products', methods=['GET'])
+def get_order_products(order_id):
+    # Get the order by ID
+    order = db.session.get(Orders, order_id)
+    
+    if not order:
+        return jsonify({"error": "Order not found"}), 404
+    
+    # Get the products associated with the order
+    products = order.products
+    
+    return products_schema.jsonify(products), 200
 
 # Delete order (DELETE)
 
